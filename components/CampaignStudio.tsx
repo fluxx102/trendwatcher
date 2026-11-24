@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { campaignBrief } from "@/lib/export";
 import { DEMO_ALTERNATIVES } from "@/lib/demo";
 import { store } from "@/lib/store";
+import { apiUrl } from "@/lib/api";
 import { trendSourceIds } from "@/lib/analytics";
 import type { CampaignConcept, Research, Trend } from "@/lib/types";
 
@@ -126,26 +127,26 @@ export function CampaignStudio({ research, trend }: { research: Research; trend:
           updateTrend({ campaigns: [...campaigns, alt] });
           setActive(campaigns.length);
         } else {
-          setErr("В демо-режиме нет других заготовленных концепций для этого тренда. Генерация новых концепций доступна при настроенном OPENAI_API_KEY в режиме реального исследования.");
+          setErr("В демо-режиме для этого тренда нет других заготовленных концепций. Генерация новых концепций доступна в реальных исследованиях.");
         }
         return;
       }
-      const res = await fetch("/api/campaign", {
+      const res = await fetch(apiUrl("/api/campaign"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, input: research.input, trend, sources: tSources(), existing: campaigns }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({ message: `Сервер вернул ошибку (${res.status}).` }));
       if (!res.ok) throw new Error(data.message ?? "Ошибка генерации");
       if (action === "alternative") {
         updateTrend({ campaigns: [...campaigns, data.campaign] });
         setActive(campaigns.length);
       } else {
-        updateTrend({ productOpportunity: data.productOpportunity, campaigns: [data.campaign] });
+        updateTrend({ ...(data.overview ? { overview: data.overview } : {}), productOpportunity: data.productOpportunity, campaigns: [data.campaign] });
         setActive(0);
       }
     } catch (e) {
-      setErr((e as Error).message);
+      setErr(e instanceof TypeError ? "Сервер исследований недоступен. Проверьте соединение и повторите." : (e as Error).message);
     } finally {
       setBusy(null);
     }

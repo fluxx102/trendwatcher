@@ -200,7 +200,59 @@ export function jaccard(a: string, b: string): number {
   A.forEach((x) => B.has(x) && inter++);
   return inter / (A.size + B.size - inter);
 }
-const normOrigin = (s: string | null) => (s ?? "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+export const normOrigin = (s: string | null) => (s ?? "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+/**
+ * Guard against topic-level grouping: an observation may only hold publications about the SAME
+ * original study/event. Publications pointing at different origins (and with dissimilar headlines)
+ * are split into their own observations. Returns new observations and oldId -> newIds[].
+ */
+export function splitObservations(observations: Observation[], sources: Source[]) {
+  const src = new Map(sources.map((x) => [x.id, x]));
+  const out: Observation[] = [];
+  const remap = new Map<string, string[]>();
+  for (const o of observations) {
+    const groups: string[][] = [];
+    const keyOf = new Map<string, number>();
+    for (const id of o.sourceIds) {
+      const s = src.get(id);
+      const key = normOrigin(s?.originHint ?? null);
+      let gi = key.length >= 6 ? keyOf.get(key) : undefined;
+      if (gi === undefined) gi = groups.findIndex((g) => g.some((other) => jaccard(src.get(other)?.title ?? "", s?.title ?? "") >= 0.75));
+      if (gi === undefined || gi < 0) {
+        groups.push([id]);
+        gi = groups.length - 1;
+      } else groups[gi].push(id);
+      if (key.length >= 6) keyOf.set(key, gi);
+    }
+    if (groups.length <= 1) {
+      out.push(o);
+      remap.set(o.id, [o.id]);
+      continue;
+    }
+    const primaryIdx = Math.max(0, groups.findIndex((g) => o.primarySourceId && g.includes(o.primarySourceId)));
+    const ids: string[] = [];
+    groups.forEach((g, k) => {
+      const head = src.get(g[0]);
+      const isMain = k === primaryIdx;
+      const id = isMain ? o.id : `${o.id}_${k}`;
+      ids.push(id);
+      out.push({
+        id,
+        title: isMain ? o.title : head?.title ?? o.title,
+        kind: isMain ? o.kind : head?.originHint ? "Отдельный первоисточник" : "Отдельная публикация",
+        primarySourceId: isMain && o.primarySourceId && g.includes(o.primarySourceId) ? o.primarySourceId : g[0],
+        sourceIds: g,
+        independence: isMain ? o.independence : head?.originHint ? "confirmed" : "unconfirmed",
+        note: isMain
+          ? `${o.note ? o.note + " " : ""}Проверка: публикации с другими первоисточниками выделены в отдельные наблюдения.`
+          : "Выделено автоматически: публикация опирается на другой первоисточник, чем основное наблюдение, поэтому не считается перепечаткой.",
+      });
+    });
+    remap.set(o.id, ids);
+  }
+  return { observations: out, remap };
+}
 
 /**
  * Deterministic safety net on top of LLM clustering: observations that share a publication,

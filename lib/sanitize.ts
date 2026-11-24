@@ -4,11 +4,7 @@
  * all cross-references (trend → observation → source) point at existing ids, scores clamped 0–100.
  */
 import { z } from "zod";
-import {
-  capEvidenceScore,
-  consolidateObservations,
-  normalizeUrl,
-} from "./analytics";
+import { capEvidenceScore, consolidateObservations, splitObservations } from "./analytics";
 import {
   CampaignConceptSchema,
   EVIDENCE_TYPES,
@@ -32,64 +28,104 @@ const num = z.preprocess((v) => {
 
 /* ---------- Search ---------- */
 
-const RawItem = z.object({
-  title: str(),
-  url: str(),
-  sourceName: str(),
-  publishedAt: z.preprocess((v) => (v == null ? null : String(v)), z.string().nullable()),
-  geography: z.preprocess((v) => (v == null || v === "" ? null : String(v)), z.string().nullable()),
-  summary: str(),
-  signal: str(),
-  evidenceType: z.preprocess((v) => String(v ?? "other"), z.enum(EVIDENCE_TYPES).catch("other")),
-  originHint: z.preprocess((v) => (v == null || v === "" ? null : String(v)), z.string().nullable()),
-});
-
 export function normalizeDate(d: string | null): string | null {
   if (!d) return null;
-  const m = d.match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?/);
-  if (!m) return null;
-  const y = Number(m[1]);
-  if (y < 1990 || y > 2100) return null;
-  return [m[1], m[2] ?? "01", m[3] ?? "01"].join("-");
+  const iso = d.match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?/);
+  if (iso) {
+    const y = Number(iso[1]);
+    if (y < 1990 || y > 2100) return null;
+    return [iso[1], iso[2] ?? "01", iso[3] ?? "01"].join("-");
+  }
+  const t = Date.parse(d); // e.g. RFC 2822 "Mon, 10 Nov 2025 12:00:00 GMT" from news search
+  if (Number.isNaN(t)) return null;
+  const y = new Date(t).getUTCFullYear();
+  return y < 1990 || y > 2100 ? null : new Date(t).toISOString().slice(0, 10);
 }
 
-export function sanitizeSearchItems(
-  raw: unknown,
-  citations: { url: string; title: string }[],
-  query: string,
-  idPrefix: string,
-): { sources: Source[]; raw: number; dropped: number } {
-  const arr = Array.isArray(raw) ? raw : Array.isArray((raw as { items?: unknown[] })?.items) ? (raw as { items: unknown[] }).items : [];
-  const cited = new Set(citations.map((c) => normalizeUrl(c.url)));
-  const sources: Source[] = [];
-  let dropped = 0;
-  arr.forEach((item, i) => {
-    const p = RawItem.safeParse(item);
-    if (!p.success || !p.data.url || !p.data.title) return void dropped++;
+const hostOf = (u: string) => {
+  try {
+    return new URL(u).hostname.replace(/^www\./, "");
+  } catch {
+    return u;
+  }
+};
+
+/**
+ * Converts raw search-API hits into Sources. URLs and dates come ONLY from the search API;
+ * the model later adds summaries and classification but can never introduce a URL or a date.
+ */
+export function hitsToSources(hits: { title: string; url: string; content: string; publishedDate: string | null }[], query: string, idPrefix: string): Source[] {
+  const out: Source[] = [];
+  hits.forEach((h, i) => {
     let url: string;
     try {
-      url = new URL(p.data.url).toString();
+      url = new URL(h.url).toString();
     } catch {
-      return void dropped++;
+      return;
     }
-    // Only URLs that appear in actual web_search citations are accepted.
-    if (!cited.has(normalizeUrl(url))) return void dropped++;
-    sources.push({
+    if (!/^https?:/.test(url)) return;
+    // Pages of search/data vendors describe the tool, not the market.
+    if (/(^|\.)(tavily\.com|google\.com|bing\.com)$/.test(new URL(url).hostname)) return;
+    out.push({
       id: `${idPrefix}${i + 1}`,
-      title: p.data.title.slice(0, 300),
+      title: h.title.slice(0, 300),
       url,
-      sourceName: p.data.sourceName || new URL(url).hostname.replace(/^www\./, ""),
-      publishedAt: normalizeDate(p.data.publishedAt),
-      geography: p.data.geography,
-      summary: p.data.summary || "Краткое содержание недоступно.",
-      signal: p.data.signal || "Описание сигнала недоступно.",
-      evidenceType: p.data.evidenceType,
-      originHint: p.data.originHint,
+      sourceName: hostOf(url),
+      publishedAt: normalizeDate(h.publishedDate),
+      geography: null,
+      summary: h.content.replace(/\s+/g, " ").trim().slice(0, 600) || "Краткое содержание недоступно.",
+      signal: "",
+      evidenceType: "other",
+      originHint: null,
       verification: "verified",
       query,
     });
   });
-  return { sources, raw: arr.length, dropped };
+  return out;
+}
+
+const RawEnrich = z.object({
+  id: str(),
+  relevant: z.preprocess((v) => v !== false && v !== "false", z.boolean()),
+  sourceName: str(),
+  summary: str(),
+  signal: str(),
+  evidenceType: z.preprocess((v) => String(v ?? "other"), z.enum(EVIDENCE_TYPES).catch("other")),
+  originHint: z.preprocess((v) => (v == null || v === "" || v === "null" ? null : String(v)), z.string().nullable()),
+  geography: z.preprocess((v) => (v == null || v === "" || v === "null" ? null : String(v)), z.string().nullable()),
+});
+
+/** Applies the model's per-source enrichment; unknown ids are ignored, irrelevant sources dropped. */
+export function applyEnrichment(raw: unknown, sources: Source[]): { sources: Source[]; irrelevant: number } {
+  const arr = Array.isArray((raw as { items?: unknown[] })?.items) ? (raw as { items: unknown[] }).items : Array.isArray(raw) ? raw : [];
+  const byId = new Map<string, z.infer<typeof RawEnrich>>();
+  for (const item of arr) {
+    const p = RawEnrich.safeParse(item);
+    if (p.success && p.data.id) byId.set(p.data.id, p.data);
+  }
+  let irrelevant = 0;
+  const kept: Source[] = [];
+  for (const s of sources) {
+    const e = byId.get(s.id);
+    if (e && !e.relevant) {
+      irrelevant++;
+      continue;
+    }
+    kept.push(
+      e
+        ? {
+            ...s,
+            sourceName: e.sourceName.slice(0, 120) || s.sourceName,
+            summary: e.summary || s.summary,
+            signal: e.signal || "Описание сигнала недоступно.",
+            evidenceType: e.evidenceType,
+            originHint: e.originHint,
+            geography: e.geography,
+          }
+        : { ...s, signal: "Описание сигнала недоступно (модель не обработала публикацию)." },
+    );
+  }
+  return { sources: kept, irrelevant };
 }
 
 /* ---------- Analysis (clustering + scoring) ---------- */
@@ -162,15 +198,18 @@ export function sanitizeAnalysis(raw: unknown, sources: Source[]) {
       note: o.note,
     });
   });
-  // 2. deterministic merge of observations that point at the same original event
-  const { observations: merged, remap } = consolidateObservations(observations, sources);
+  // 2a. split topic-level groups (different origins ≠ reprints)
+  const split = splitObservations(observations, sources);
+  // 2b. deterministic merge of observations that point at the same original event
+  const { observations: merged, remap: mergeMap } = consolidateObservations(split.observations, sources);
+  const remap = { get: (id: string) => (split.remap.get(id) ?? [id]).map((x) => mergeMap.get(x) ?? x) };
   observations = merged;
   const obsIds = new Set(observations.map((o) => o.id));
 
   // 3. trends: remap and validate observation ids; programmatic evidence cap
   const trends: Omit<Trend, "productOpportunity" | "campaigns">[] = [];
   p.trends.forEach((t, i) => {
-    const ids = [...new Set(t.observationIds.map((id) => remap.get(id) ?? id).filter((id) => obsIds.has(id)))];
+    const ids = [...new Set(t.observationIds.flatMap((id) => remap.get(id)).filter((id) => obsIds.has(id)))];
     if (!ids.length || !t.name) return;
     const independent = observations.filter((o) => ids.includes(o.id) && o.independence === "confirmed").length;
     const cap = capEvidenceScore(t.scores.evidence.value, independent);
@@ -231,13 +270,17 @@ export function sanitizeCampaign(raw: unknown, allowedSourceIds: string[], id: s
   });
 }
 
+const RawOverview = z.object({ description: str(), whatChanges: str(), whyNow: str(), consumerNeeds: strArr, whyForBrand: str(), limitations: strArr });
+
 export function sanitizeCreative(
   raw: unknown,
   allowedSourceIds: string[],
   campaignId: string,
-): { productOpportunity: ProductOpportunity; campaign: CampaignConcept } {
-  const r = (raw ?? {}) as { productOpportunity?: unknown; campaign?: unknown };
+): { overview: Trend["overview"] | null; productOpportunity: ProductOpportunity; campaign: CampaignConcept } {
+  const r = (raw ?? {}) as { overview?: unknown; productOpportunity?: unknown; campaign?: unknown };
+  const ov = r.overview ? RawOverview.safeParse(r.overview) : null;
   return {
+    overview: ov?.success && ov.data.description ? ov.data : null,
     productOpportunity: ProductOpportunitySchema.parse(RawProduct.parse(r.productOpportunity ?? {})),
     campaign: sanitizeCampaign(r.campaign ?? {}, allowedSourceIds, campaignId),
   };

@@ -1,5 +1,6 @@
 "use client";
-import { IS_STATIC, researchHref } from "@/lib/routes";
+import { researchHref } from "@/lib/routes";
+import { STATUS_TEXT, apiUrl, fetchStatus, type ServiceStatus } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Check, CircleDashed, FlaskConical, Loader2, Play, Sparkles, X } from "lucide-react";
@@ -25,10 +26,11 @@ const STAGES: { id: StageId; label: string; hint: string }[] = [
   { id: "cluster", label: "Кластеризация и перепечатки", hint: "Публикации → независимые наблюдения → тренды" },
   { id: "score", label: "Проверка доказательств и скоринг", hint: "5 компонентов, итог рассчитывается программно" },
   { id: "creative", label: "Гипотезы и кампании", hint: "Продуктовая гипотеза и концепция кампании для каждого тренда" },
+  { id: "report", label: "Формирование отчёта", hint: "Сохранение результата и переход к дашборду" },
 ];
 
 type StageState = Record<StageId, { status: "idle" | "running" | "done" | "error"; detail?: string }>;
-const initialStages = (): StageState => ({ plan: { status: "idle" }, search: { status: "idle" }, cluster: { status: "idle" }, score: { status: "idle" }, creative: { status: "idle" } });
+const initialStages = (): StageState => ({ plan: { status: "idle" }, search: { status: "idle" }, cluster: { status: "idle" }, score: { status: "idle" }, creative: { status: "idle" }, report: { status: "idle" } });
 
 export default function ResearchStudio() {
   const router = useRouter();
@@ -38,12 +40,12 @@ export default function ResearchStudio() {
   const [running, setRunning] = useState(false);
   const [stages, setStages] = useState<StageState>(initialStages);
   const [failure, setFailure] = useState<{ code: string; message: string } | null>(null);
-  const [status, setStatus] = useState<{ hasApiKey: boolean; model: string } | null>(null);
+  const [status, setStatus] = useState<ServiceStatus | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  const refreshStatus = () => fetchStatus().then(setStatus);
   useEffect(() => {
-    if (IS_STATIC) return setStatus({ hasApiKey: false, model: "" });
-    fetch("/api/status").then((r) => r.json()).then(setStatus).catch(() => setStatus({ hasApiKey: false, model: "" }));
+    refreshStatus();
   }, []);
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
@@ -68,8 +70,10 @@ export default function ResearchStudio() {
       return;
     }
     setErrors([]);
-    if (IS_STATIC) {
-      setFailure({ code: "NO_API_KEY", message: "Это статическая демо-версия на GitHub Pages: реальный AI-поиск требует серверной части с OPENAI_API_KEY (запустите приложение локально: npm run dev). Здесь доступно демонстрационное исследование." });
+    if (running) return; // no double submit
+    if (status && !status.available && status.reason) {
+      setFailure({ code: status.reason.toUpperCase(), message: STATUS_TEXT[status.reason] + ". Демо-исследование доступно отдельной кнопкой." });
+      refreshStatus();
       return;
     }
     setRunning(true);
@@ -77,10 +81,11 @@ export default function ResearchStudio() {
     const ac = new AbortController();
     abortRef.current = ac;
     try {
-      const res = await fetch("/api/research", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(parsed.data), signal: ac.signal });
+      const res = await fetch(apiUrl("/api/research"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(parsed.data), signal: ac.signal });
       if (!res.ok || !res.body) {
-        const e = await res.json().catch(() => ({ code: "HTTP", message: `Ошибка сервера (${res.status})` }));
+        const e = await res.json().catch(() => ({ code: "HTTP", message: `Сервер исследований вернул ошибку (${res.status}).` }));
         setFailure(e);
+        refreshStatus();
         return;
       }
       const reader = res.body.getReader();
@@ -96,6 +101,7 @@ export default function ResearchStudio() {
         for (const line of lines) {
           if (!line.trim()) continue;
           const ev = JSON.parse(line) as ResearchEvent;
+          if (ev.type === "ping") continue;
           if (ev.type === "stage") setStages((s) => ({ ...s, [ev.stage]: { status: ev.status, detail: ev.detail } }));
           else if (ev.type === "error") {
             finished = true;
@@ -107,6 +113,7 @@ export default function ResearchStudio() {
             setFailure({ code: ev.code, message: ev.message });
           } else if (ev.type === "result") {
             finished = true;
+            setStages((st) => ({ ...st, report: { status: "done", detail: "Отчёт сохранён в истории" } }));
             store.save(ev.research);
             router.push(researchHref(ev.research.id));
           }
@@ -114,13 +121,14 @@ export default function ResearchStudio() {
       }
       if (!finished) setFailure({ code: "STREAM", message: "Соединение прервано до завершения исследования." });
     } catch (e) {
-      if ((e as Error).name !== "AbortError") setFailure({ code: "NETWORK", message: "Не удалось связаться с сервером приложения." });
+      if ((e as Error).name === "AbortError") setFailure({ code: "CANCELLED", message: "Исследование отменено. Параметры формы сохранены — можно запустить снова." });
+      else setFailure({ code: "NETWORK", message: "Соединение с сервером исследований прервано. Параметры формы сохранены — повторите запуск." });
     } finally {
       setRunning(false);
     }
   }
 
-  const showProgress = running || (failure && failure.code !== "NO_API_KEY" && failure.code !== "INVALID_INPUT" && Object.values(stages).some((s) => s.status !== "idle"));
+  const showProgress = running || (!!failure && Object.values(stages).some((s) => s.status !== "idle"));
 
   return (
     <div>
@@ -130,9 +138,15 @@ export default function ResearchStudio() {
           <h1 className="font-serif text-3xl font-semibold ">Новое исследование рынка</h1>
           <p className="mt-2 max-w-2xl text-base text-ink-3 sm:text-md">Опишите рынок, бренд и вопрос — Trendwatcher соберёт публикации, отделит независимые наблюдения от перепечаток и превратит тренды в продуктовые гипотезы и кампании.</p>
         </div>
-        <div className={cn("flex items-center gap-2 rounded-full border px-3 py-1 text-xs", status?.hasApiKey ? "border-accent/30 bg-accent-soft text-accent-ink" : "border-line-2 bg-surface text-ink-3")}>
-          <span className={cn("h-1.5 w-1.5 rounded-full", status === null ? "bg-ink-4" : status.hasApiKey ? "bg-accent" : "bg-amber")} />
-          {status === null ? "Проверка AI-движка…" : status.hasApiKey ? `AI-поиск активен · ${status.model}` : IS_STATIC ? "Статическая демо-версия — реальный поиск только при запуске с сервером" : "API-ключ не настроен — доступен демо-режим"}
+        <div role="status" className={cn("flex max-w-full items-center gap-2 rounded-full border px-3 py-1 text-xs", status?.available ? "border-accent/30 bg-accent-soft text-accent-ink" : status ? "border-amber/30 bg-amber-soft text-amber" : "border-line-2 bg-surface text-ink-3")}>
+          <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", status === null ? "bg-ink-4" : status.available ? "bg-accent" : "bg-amber")} />
+          <span>
+            {status === null
+              ? "Проверка сервиса исследований…"
+              : status.available
+                ? `Реальный поиск доступен · ${status.provider}${status.limits ? ` · лимит ${status.limits.researchPerHour}/час` : ""}`
+                : STATUS_TEXT[status.reason ?? "unreachable"]}
+          </span>
         </div>
       </header>
 
@@ -219,11 +233,11 @@ export default function ResearchStudio() {
               <div className="flex items-start gap-3">
                 <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose" />
                 <div>
-                  <div className="font-medium text-ink">{failure.code === "NO_API_KEY" ? "Реальный поиск недоступен" : failure.code === "NO_RESULTS" ? "Ничего не найдено" : "Исследование не завершено"}</div>
+                  <div className="font-medium text-ink">{["NO_API_KEY", "NOT_CONFIGURED", "UNREACHABLE", "NO_BACKEND"].includes(failure.code) ? "Реальный поиск недоступен" : failure.code === "NO_RESULTS" ? "Ничего не найдено" : ["RATE_LIMIT", "BUDGET", "BUSY", "QUOTA", "BUDGET_EXHAUSTED"].includes(failure.code) ? "Достигнут лимит" : failure.code === "CANCELLED" ? "Исследование отменено" : "Исследование не завершено"}</div>
                   <p className="mt-1 text-sm text-ink-3">{failure.message}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Button size="sm" variant="accent" onClick={runDemo}><FlaskConical className="h-3.5 w-3.5" /> Открыть демо</Button>
-                    {failure.code !== "NO_API_KEY" && <Button size="sm" onClick={run}>Повторить</Button>}
+                    <Button size="sm" onClick={runDemo}><FlaskConical className="h-3.5 w-3.5" /> Открыть демо (синтетические данные)</Button>
+                    {!["NO_API_KEY", "NOT_CONFIGURED", "NO_BACKEND", "BUDGET", "BUDGET_EXHAUSTED"].includes(failure.code) && <Button size="sm" variant="primary" onClick={run}>Повторить</Button>}
                   </div>
                 </div>
               </div>
@@ -248,7 +262,7 @@ export default function ResearchStudio() {
                   );
                 })}
               </ol>
-              {running && <p className="mt-4 border-t border-line pt-3 text-xs text-ink-4">Реальный веб-поиск и анализ занимают 1–3 минуты. Этапы отмечаются только по факту завершения на сервере.</p>}
+              {running && <p className="mt-4 border-t border-line pt-3 text-xs text-ink-4">Реальный поиск и анализ занимают 1–3 минуты. Этапы отмечаются только по факту их выполнения на сервере; не закрывайте вкладку.</p>}
             </Card>
           ) : (
             <Card className="p-5">

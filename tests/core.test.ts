@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  capEvidenceScore, consolidateObservations, dedupeSources, normalizeUrl, priorityOf, researchKpis,
+  capEvidenceScore, consolidateObservations, splitObservations, dedupeSources, normalizeUrl, priorityOf, researchKpis,
   trendEvidence, trendScore, zoneOf,
 } from "../lib/analytics";
-import { sanitizeAnalysis, sanitizeCampaign, sanitizeSearchItems } from "../lib/sanitize";
+import { applyEnrichment, hitsToSources, normalizeDate, sanitizeAnalysis, sanitizeCampaign } from "../lib/sanitize";
 import { buildDemoResearch } from "../lib/demo";
 import { ResearchSchema, type Observation, type Scores, type Source } from "../lib/types";
 
@@ -77,17 +77,49 @@ test("Reprints of one study are merged into ONE observation", () => {
   assert.equal(remap.get("O3"), remap.get("O1"));
 });
 
-test("Search sanitization: URLs not present in web_search citations are dropped", () => {
-  const raw = [
-    { title: "Real", url: "https://real.com/article?utm_source=x", sourceName: "Real", publishedAt: "2026-03", summary: "x", signal: "y", evidenceType: "news" },
-    { title: "Invented", url: "https://hallucinated.com/report", sourceName: "Fake" },
-    { title: "No url" },
-  ];
-  const r = sanitizeSearchItems(raw, [{ url: "https://real.com/article", title: "Real" }], "q", "S1_");
+test("Search hits → sources: URLs and dates only from the search API", () => {
+  const src = hitsToSources(
+    [
+      { title: "Real", url: "https://real.com/a?utm_source=x", content: "  some   text ", publishedDate: "Mon, 10 Nov 2025 12:00:00 GMT" },
+      { title: "Bad", url: "javascript:alert(1)", content: "", publishedDate: null },
+      { title: "NoDate", url: "https://x.org/b", content: "", publishedDate: null },
+    ],
+    "q",
+    "S1_",
+  );
+  assert.equal(src.length, 2, "non-http URL dropped");
+  assert.equal(src[0].publishedAt, "2025-11-10");
+  assert.equal(src[0].sourceName, "real.com");
+  assert.equal(src[0].summary, "some text");
+  assert.equal(src[1].publishedAt, null, "missing date stays unknown");
+  assert.ok(src.every((s) => s.verification === "verified"));
+  assert.equal(normalizeDate("2026-03"), "2026-03-01");
+  assert.equal(normalizeDate("garbage"), null);
+});
+
+test("Enrichment: model cannot change URL/date, irrelevant sources dropped, unknown ids ignored", () => {
+  const base = hitsToSources(
+    [
+      { title: "A", url: "https://a.com/1", content: "c", publishedDate: "2026-01-02" },
+      { title: "B", url: "https://b.com/1", content: "c", publishedDate: null },
+    ],
+    "q",
+    "S1_",
+  );
+  const r = applyEnrichment(
+    { items: [
+      { id: "S1_1", relevant: true, sourceName: "A Media", summary: "sum", signal: "sig", evidenceType: "report", originHint: "Study X", geography: "США", url: "https://evil.com", publishedAt: "1999-01-01" },
+      { id: "S1_2", relevant: false },
+      { id: "S9_9", relevant: true, summary: "ghost" },
+    ] },
+    base,
+  );
   assert.equal(r.sources.length, 1);
-  assert.equal(r.dropped, 2);
-  assert.equal(r.sources[0].publishedAt, "2026-03-01");
-  assert.equal(r.sources[0].verification, "verified");
+  assert.equal(r.irrelevant, 1);
+  assert.equal(r.sources[0].url, "https://a.com/1");
+  assert.equal(r.sources[0].publishedAt, "2026-01-02");
+  assert.equal(r.sources[0].evidenceType, "report");
+  assert.equal(r.sources[0].originHint, "Study X");
 });
 
 test("Analysis sanitization: unknown ids removed, scores clamped, evidence capped", () => {
@@ -149,4 +181,21 @@ test("Demo research: valid schema, KPIs without double counting, weak signal fla
     const ids = new Set(r.observations.filter((o) => t.observationIds.includes(o.id)).flatMap((o) => o.sourceIds));
     for (const c of t.campaigns) for (const l of c.evidenceLinks) for (const id of l.sourceIds) assert.ok(ids.has(id), `${t.id}:${id}`);
   }
+});
+
+test("Topic-level grouping is split: different origins are NOT reprints", () => {
+  const sources = [
+    src("a", { originHint: "Circana Pet Report 2026", title: "Circana: fresh food sales grow" }),
+    src("b", { originHint: "Circana Pet Report 2026", title: "Fresh dog food grows, Circana says" }),
+    src("c", { originHint: "APPA National Pet Owners Survey", title: "APPA survey on dog owners" }),
+    src("d", { originHint: null, title: "Agency blog about pet marketing trends" }),
+  ];
+  const obs: Observation[] = [{ id: "O1", title: "Fresh food trend", kind: "k", primarySourceId: "a", sourceIds: ["a", "b", "c", "d"], independence: "confirmed", note: "same trend" }];
+  const { observations, remap } = splitObservations(obs, sources);
+  assert.equal(observations.length, 3, "Circana (a+b) | APPA (c) | blog (d)");
+  const main = observations.find((o) => o.id === "O1")!;
+  assert.deepEqual(main.sourceIds, ["a", "b"]);
+  assert.equal(observations.find((o) => o.sourceIds.includes("c"))!.independence, "confirmed");
+  assert.equal(observations.find((o) => o.sourceIds.includes("d"))!.independence, "unconfirmed");
+  assert.equal(remap.get("O1")!.length, 3);
 });

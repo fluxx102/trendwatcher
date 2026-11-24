@@ -28,6 +28,8 @@ jobs:
       - run: npm run build:static
         env:
           BASE_PATH: /${{ github.event.repository.name }}
+          # Public backend (Vercel) for real research; set in Settings → Secrets and variables → Actions → Variables
+          NEXT_PUBLIC_API_BASE: ${{ vars.API_BASE_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: out

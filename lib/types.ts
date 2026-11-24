@@ -143,8 +143,9 @@ export const ResearchSchema = z.object({
 export type Research = z.infer<typeof ResearchSchema>;
 
 /** Streaming events from /api/research */
-export type StageId = "plan" | "search" | "cluster" | "score" | "creative";
+export type StageId = "plan" | "search" | "cluster" | "score" | "creative" | "report";
 export type ResearchEvent =
   | { type: "stage"; stage: StageId; status: "running" | "done" | "error"; detail?: string }
   | { type: "result"; research: Research }
-  | { type: "error"; code: string; message: string };
+  | { type: "error"; code: string; message: string }
+  | { type: "ping" };

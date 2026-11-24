@@ -69,19 +69,19 @@ function TrendView() {
           <Card className="p-5 lg:col-span-2">
             <p className="text-md leading-relaxed text-ink-2">{o.description || trend.shortDescription}</p>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <div><div className="mb-1 text-xs font-semibold text-ink-3">Что именно меняется</div><p className="text-sm text-ink-2">{o.whatChanges}</p></div>
-              <div><div className="mb-1 text-xs font-semibold text-ink-3">Почему важно сейчас</div><p className="text-sm text-ink-2">{o.whyNow}</p></div>
-              <div className="sm:col-span-2 rounded-lg bg-accent-soft/60 p-4"><div className="mb-1 text-xs font-semibold text-accent-ink">Почему это важно для {research.input.brand}</div><p className="text-sm text-ink-2">{o.whyForBrand}</p></div>
+              {o.whatChanges && <div><div className="mb-1 text-xs font-semibold text-ink-3">Что именно меняется</div><p className="text-sm text-ink-2">{o.whatChanges}</p></div>}
+              {o.whyNow && <div><div className="mb-1 text-xs font-semibold text-ink-3">Почему важно сейчас</div><p className="text-sm text-ink-2">{o.whyNow}</p></div>}
+              <div className="sm:col-span-2 rounded-lg bg-accent-soft/60 p-4"><div className="mb-1 text-xs font-semibold text-accent-ink">Почему это важно для {research.input.brand}</div><p className="text-sm text-ink-2">{o.whyForBrand || trend.opportunity}</p></div>
             </div>
           </Card>
           <div className="space-y-4">
-            <Card className="p-5">
+            {o.consumerNeeds.length > 0 && <Card className="p-5">
               <div className="mb-2 text-xs font-semibold text-ink-3">Потребности за изменением</div>
               <ul className="space-y-1.5 text-sm text-ink-2">{o.consumerNeeds.map((n) => <li key={n} className="flex gap-2"><span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-accent" />{n}</li>)}</ul>
-            </Card>
+            </Card>}
             <Card className="border-amber/30 p-5">
               <div className="mb-2 text-xs font-semibold text-amber">Ограничения вывода</div>
-              <ul className="space-y-1.5 text-sm text-ink-2">{o.limitations.map((n) => <li key={n} className="flex gap-2"><span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-amber" />{n}</li>)}</ul>
+              <ul className="space-y-1.5 text-sm text-ink-2">{(o.limitations.length ? o.limitations : ["Ограничения для этого тренда не сформулированы — см. ограничения исследования на дашборде."]).map((n) => <li key={n} className="flex gap-2"><span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-amber" />{n}</li>)}</ul>
             </Card>
           </div>
         </div>
