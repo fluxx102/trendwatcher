@@ -1,4 +1,5 @@
 "use client";
+import { IS_STATIC, researchHref } from "@/lib/routes";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Check, CircleDashed, FlaskConical, Loader2, Play, Sparkles, X } from "lucide-react";
@@ -41,6 +42,7 @@ export default function ResearchStudio() {
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    if (IS_STATIC) return setStatus({ hasApiKey: false, model: "" });
     fetch("/api/status").then((r) => r.json()).then(setStatus).catch(() => setStatus({ hasApiKey: false, model: "" }));
   }, []);
 
@@ -55,7 +57,7 @@ export default function ResearchStudio() {
   function runDemo() {
     const r = buildDemoResearch();
     store.save(r);
-    router.push(`/research/${r.id}`);
+    router.push(researchHref(r.id));
   }
 
   async function run() {
@@ -66,6 +68,10 @@ export default function ResearchStudio() {
       return;
     }
     setErrors([]);
+    if (IS_STATIC) {
+      setFailure({ code: "NO_API_KEY", message: "Это статическая демо-версия на GitHub Pages: реальный AI-поиск требует серверной части с OPENAI_API_KEY (запустите приложение локально: npm run dev). Здесь доступно демонстрационное исследование." });
+      return;
+    }
     setRunning(true);
     setStages(initialStages());
     const ac = new AbortController();
@@ -102,7 +108,7 @@ export default function ResearchStudio() {
           } else if (ev.type === "result") {
             finished = true;
             store.save(ev.research);
-            router.push(`/research/${ev.research.id}`);
+            router.push(researchHref(ev.research.id));
           }
         }
       }
@@ -126,7 +132,7 @@ export default function ResearchStudio() {
         </div>
         <div className={cn("flex items-center gap-2 rounded-full border px-3 py-1 text-xs", status?.hasApiKey ? "border-accent/30 bg-accent-soft text-accent-ink" : "border-line-2 bg-white text-ink-3")}>
           <span className={cn("h-1.5 w-1.5 rounded-full", status === null ? "bg-ink-4" : status.hasApiKey ? "bg-accent" : "bg-amber")} />
-          {status === null ? "Проверка AI-движка…" : status.hasApiKey ? `AI-поиск активен · ${status.model}` : "API-ключ не настроен — доступен демо-режим"}
+          {status === null ? "Проверка AI-движка…" : status.hasApiKey ? `AI-поиск активен · ${status.model}` : IS_STATIC ? "Статическая демо-версия — реальный поиск только при запуске с сервером" : "API-ключ не настроен — доступен демо-режим"}
         </div>
       </header>
 

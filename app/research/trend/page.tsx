@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
-import { use } from "react";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { researchHref } from "@/lib/routes";
 import { ArrowLeft, RefreshCw, SearchX } from "lucide-react";
 import { Card, DemoBanner, EmptyState, EvidenceBadge, LinkButton, Loading, PriorityBadge, ScoreRing, SectionTitle } from "@/components/ui";
 import { EvidenceExplorer } from "@/components/EvidenceExplorer";
@@ -18,8 +20,10 @@ const SECTIONS = [
   { id: "campaign", label: "E · Campaign Studio" },
 ];
 
-export default function TrendPage({ params }: { params: Promise<{ id: string; trendId: string }> }) {
-  const { id, trendId } = use(params);
+function TrendView() {
+  const sp = useSearchParams();
+  const id = sp.get("id") ?? "";
+  const trendId = sp.get("trend") ?? "";
   const { ready, research } = useResearch(id);
   if (!ready) return <Loading />;
   const trend = research?.trends.find((t) => t.id === trendId);
@@ -33,7 +37,7 @@ export default function TrendPage({ params }: { params: Promise<{ id: string; tr
   return (
     <div>
       {research.mode === "demo" && <DemoBanner />}
-      <Link href={`/research/${research.id}`} className="mb-5 inline-flex items-center gap-1.5 text-[13px] text-ink-3 hover:text-ink"><ArrowLeft className="h-3.5 w-3.5" />{research.title}</Link>
+      <Link href={researchHref(research.id)} className="mb-5 inline-flex items-center gap-1.5 text-[13px] text-ink-3 hover:text-ink"><ArrowLeft className="h-3.5 w-3.5" />{research.title}</Link>
 
       <header className="mb-6 flex flex-wrap items-start justify-between gap-6">
         <div className="max-w-3xl">
@@ -110,5 +114,13 @@ export default function TrendPage({ params }: { params: Promise<{ id: string; tr
         <CampaignStudio research={research} trend={trend} />
       </section>
     </div>
+  );
+}
+
+export default function TrendPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <TrendView />
+    </Suspense>
   );
 }

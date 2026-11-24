@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "next lint",
-    "test": "tsx --conditions=react-server --test tests/*.test.ts"
+    "test": "tsx --conditions=react-server --test tests/*.test.ts",
+    "build:static": "node scripts/build-static.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.1.1",

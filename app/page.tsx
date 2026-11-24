@@ -1,4 +1,5 @@
 "use client";
+import { researchHref, trendHref } from "@/lib/routes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, FileSearch, FlaskConical, Layers, Lightbulb, Megaphone, Plus } from "lucide-react";
@@ -21,7 +22,7 @@ export default function Overview() {
   const demo = () => {
     const r = buildDemoResearch();
     store.save(r);
-    router.push(`/research/${r.id}`);
+    router.push(researchHref(r.id));
   };
   return (
     <div>
@@ -56,7 +57,7 @@ export default function Overview() {
             <h2 className="font-serif text-[22px] font-semibold">Последнее исследование</h2>
             <Link href="/history" className="text-[13px] text-ink-3 hover:text-ink">Вся история →</Link>
           </div>
-          <Link href={`/research/${latest.id}`} className="group block">
+          <Link href={researchHref(latest.id)} className="group block">
             <Card className="p-5 transition-shadow group-hover:shadow-pop">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>

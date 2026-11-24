@@ -1,6 +1,8 @@
 "use client";
+import { researchHref, trendHref } from "@/lib/routes";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { History, LayoutDashboard, Megaphone, Plus, Radar } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useResearches } from "@/lib/store";
@@ -26,8 +28,9 @@ export function Logo() {
   );
 }
 
-export function Sidebar() {
+function SidebarInner() {
   const path = usePathname();
+  const currentId = useSearchParams().get("id");
   const { list } = useResearches();
   return (
     <aside className="fixed inset-x-0 top-0 z-30 border-b border-line bg-paper/90 backdrop-blur lg:inset-y-0 lg:right-auto lg:w-60 lg:border-b-0 lg:border-r">
@@ -52,7 +55,7 @@ export function Sidebar() {
           <div className="mt-8 hidden lg:block">
             <div className="mb-2 px-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-4">Недавние</div>
             {list.slice(0, 5).map((r) => (
-              <Link key={r.id} href={`/research/${r.id}`} className={cn("block truncate rounded-md px-2.5 py-1 text-[13px] hover:bg-paper-2", path.includes(r.id) ? "text-ink" : "text-ink-3")}>
+              <Link key={r.id} href={researchHref(r.id)} className={cn("block truncate rounded-md px-2.5 py-1 text-[13px] hover:bg-paper-2", currentId === r.id ? "text-ink" : "text-ink-3")}>
                 {r.mode === "demo" && <span className="mr-1.5 text-[10px] font-semibold text-amber">ДЕМО</span>}
                 {r.input.brand} · {r.input.geography}
               </Link>
@@ -64,5 +67,13 @@ export function Sidebar() {
         Signal → Evidence → Insight → Campaign
       </div>
     </aside>
+  );
+}
+
+export function Sidebar() {
+  return (
+    <Suspense fallback={null}>
+      <SidebarInner />
+    </Suspense>
   );
 }

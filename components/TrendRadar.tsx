@@ -1,4 +1,5 @@
 "use client";
+import { researchHref, trendHref } from "@/lib/routes";
 import { useRouter } from "next/navigation";
 import { CartesianGrid, ReferenceArea, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis, Cell, Label } from "recharts";
 import { PRIORITY_META, ZONE_META, priorityOf, trendEvidence, trendScore } from "@/lib/analytics";
@@ -51,7 +52,7 @@ export function TrendRadar({ research }: { research: Research }) {
           </YAxis>
           <ZAxis type="number" dataKey="z" range={[140, 900]} domain={[0, 5]} />
           <Tooltip content={<Tip />} cursor={false} />
-          <Scatter data={data} onClick={(p: unknown) => router.push(`/research/${research.id}/trend/${(p as Pt).id}`)} className="cursor-pointer">
+          <Scatter data={data} onClick={(p: unknown) => router.push(trendHref(research.id, (p as Pt).id))} className="cursor-pointer">
             {data.map((d) => (
               <Cell key={d.id} fill={d.color} fillOpacity={0.78} stroke="#fff" strokeWidth={2} />
             ))}

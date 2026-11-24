@@ -20,6 +20,13 @@ npm run dev                  # http://localhost:3000
 | `OPENAI_API_KEY` | Ключ OpenAI. Используется только на сервере. Без него доступен демо-режим. |
 | `OPENAI_MODEL` | Модель с поддержкой Responses API + `web_search` (по умолчанию `gpt-4.1`). |
 
+## Демо на GitHub Pages
+
+`npm run build:static` собирает статическую версию в `out/` (без API-роутов, только демо-режим; `BASE_PATH` по умолчанию `/trendwatcher`).
+Workflow `.github/workflows/pages.yml` при каждом пуше прогоняет тесты, собирает статику и публикует её на `https://<user>.github.io/trendwatcher/`.
+Включение: Settings → Pages → Source: **GitHub Actions**. Для приватного репозитория Pages требует GitHub Pro/Team, иначе сделайте репозиторий публичным.
+Реальный AI-поиск в статической версии недоступен — для него запустите приложение с сервером (`npm run dev`/`npm start`).
+
 ## Пользовательский путь
 
 1. **Research Studio** (`/new`): рынок, бренд, позиционирование, география, период (30/90/180/365), вопрос, ЦА, 7 пресетов категорий, примеры вопросов в один клик, запуск демо без API.

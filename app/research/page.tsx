@@ -1,5 +1,6 @@
 "use client";
-import { use } from "react";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { AlertCircle, FileText, Layers, Copy, Flame, TrendingUp, SearchX } from "lucide-react";
 import { Card, EmptyState, LinkButton, Loading, SectionTitle } from "@/components/ui";
 import { ResearchHeader } from "@/components/ResearchHeader";
@@ -8,8 +9,8 @@ import { TrendExplorer } from "@/components/TrendExplorer";
 import { PRIORITY_META, ZONE_META, researchKpis, type Priority } from "@/lib/analytics";
 import { useResearch } from "@/lib/store";
 
-export default function Dashboard({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+function Dashboard() {
+  const id = useSearchParams().get("id") ?? "";
   const { ready, research } = useResearch(id);
   if (!ready) return <Loading />;
   if (!research)
@@ -95,5 +96,13 @@ export default function Dashboard({ params }: { params: Promise<{ id: string }> 
         </>
       )}
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <Dashboard />
+    </Suspense>
   );
 }

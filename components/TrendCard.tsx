@@ -1,4 +1,5 @@
 "use client";
+import { researchHref, trendHref } from "@/lib/routes";
 import Link from "next/link";
 import { ArrowUpRight, FileText, Layers } from "lucide-react";
 import { Card, EvidenceBadge, PriorityBadge, ScoreRing } from "./ui";
@@ -9,7 +10,7 @@ export function TrendCard({ research, trend }: { research: Research; trend: Tren
   const score = trendScore(trend.scores);
   const ev = trendEvidence(research, trend);
   return (
-    <Link href={`/research/${research.id}/trend/${trend.id}`} className="group block">
+    <Link href={trendHref(research.id, trend.id)} className="group block">
       <Card className="flex h-full flex-col p-5 transition-all group-hover:-translate-y-0.5 group-hover:border-line-2 group-hover:shadow-pop">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">

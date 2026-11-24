@@ -1,4 +1,5 @@
 "use client";
+import { researchHref, trendHref } from "@/lib/routes";
 import Link from "next/link";
 import { Radar } from "lucide-react";
 import { EmptyState, LinkButton, Loading, SectionTitle } from "@/components/ui";
@@ -28,7 +29,7 @@ export default function ExplorerPage() {
               {list.map((x) => <option key={x.id} value={x.id}>{x.mode === "demo" ? "[Демо] " : ""}{x.input.brand} · {x.input.market}</option>)}
             </select>
           )}
-          <Link href={`/research/${r.id}`} className="text-[13px] text-accent hover:underline">Дашборд и карта трендов →</Link>
+          <Link href={researchHref(r.id)} className="text-[13px] text-accent hover:underline">Дашборд и карта трендов →</Link>
         </div>
       </div>
       <SectionTitle title="Каталог трендов" />

@@ -1,4 +1,5 @@
 "use client";
+import { researchHref, trendHref } from "@/lib/routes";
 import Link from "next/link";
 import { useState } from "react";
 import { Megaphone } from "lucide-react";
@@ -48,7 +49,7 @@ export default function CampaignsPage() {
             ))}
           </div>
           <div>
-            <Link href={`/research/${r.id}/trend/${t.id}#evidence`} className="mb-3 inline-block text-[13px] text-accent hover:underline">Доказательная база тренда «{t.name}» →</Link>
+            <Link href={trendHref(r.id, t.id, "#evidence")} className="mb-3 inline-block text-[13px] text-accent hover:underline">Доказательная база тренда «{t.name}» →</Link>
             <CampaignStudio key={t.id} research={r} trend={t} />
           </div>
         </div>

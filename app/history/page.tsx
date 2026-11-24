@@ -1,4 +1,5 @@
 "use client";
+import { researchHref, trendHref } from "@/lib/routes";
 import Link from "next/link";
 import { History, Trash2 } from "lucide-react";
 import { Button, Card, EmptyState, LinkButton, Loading } from "@/components/ui";
@@ -23,7 +24,7 @@ export default function HistoryPage() {
             const k = researchKpis(r);
             return (
               <div key={r.id} className="flex flex-wrap items-center gap-4 px-5 py-4">
-                <Link href={`/research/${r.id}`} className="min-w-0 flex-1">
+                <Link href={researchHref(r.id)} className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     {r.mode === "demo" ? <span className="rounded bg-amber px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">Демо</span> : <span className="rounded bg-accent px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">Live</span>}
                     <span className="truncate font-medium hover:text-accent">{r.title}</span>
