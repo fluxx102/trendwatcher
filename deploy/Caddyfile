@@ -1,0 +1,11 @@
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy app:3000 {
+		# research progress is streamed (NDJSON): never buffer responses
+		flush_interval -1
+		transport http {
+			read_timeout 10m
+			write_timeout 10m
+		}
+	}
+}

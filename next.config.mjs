@@ -10,7 +10,7 @@ const nextConfig = {
   reactStrictMode: true,
   ...(isStatic
     ? { output: "export", trailingSlash: true, images: { unoptimized: true }, basePath, assetPrefix: basePath || undefined }
-    : {}),
+    : { output: "standalone" }), // self-contained server for Docker / own server
   env: { NEXT_PUBLIC_STATIC_DEMO: isStatic ? "1" : "0" },
 };
 export default nextConfig;
