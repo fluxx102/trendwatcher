@@ -1,0 +1,16 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/source-serif-4";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+html, body { background: #fbfaf7; color: #16181d; }
+body { font-feature-settings: "cv11", "ss01"; -webkit-font-smoothing: antialiased; }
+::selection { background: #cfe7e3; }
+.recharts-wrapper:focus, .recharts-surface:focus { outline: none; }
+@media print {
+  aside, .no-print { display: none !important; }
+  main { margin: 0 !important; padding: 0 !important; }
+}
