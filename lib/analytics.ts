@@ -36,11 +36,12 @@ export function priorityOf(score: number): Priority {
   if (score >= 40) return "verify";
   return "weak";
 }
-export const PRIORITY_META: Record<Priority, { label: string; color: string; bg: string; text: string }> = {
-  high: { label: "Высокий приоритет", color: "#0f766e", bg: "bg-accent-soft", text: "text-accent-ink" },
-  promising: { label: "Перспективный тренд", color: "#2c4fd6", bg: "bg-cobalt-soft", text: "text-cobalt" },
-  verify: { label: "Требует проверки", color: "#b45309", bg: "bg-amber-soft", text: "text-amber" },
-  weak: { label: "Слабый сигнал", color: "#8a8f99", bg: "bg-paper-2", text: "text-ink-3" },
+/** Priority is ordinal → one-hue ramp (validated with dataviz validate_palette --ordinal). */
+export const PRIORITY_META: Record<Priority, { label: string; short: string; color: string; rank: number }> = {
+  high: { label: "Высокий приоритет", short: "Высокий", color: "#073a36", rank: 1 },
+  promising: { label: "Перспективный тренд", short: "Перспективный", color: "#0c655d", rank: 2 },
+  verify: { label: "Требует проверки", short: "Проверить", color: "#1f8b7d", rank: 3 },
+  weak: { label: "Слабый сигнал", short: "Слабый", color: "#5fac9f", rank: 4 },
 };
 
 /* ---------------- Evidence ---------------- */

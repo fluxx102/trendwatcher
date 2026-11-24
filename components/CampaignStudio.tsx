@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Check, ClipboardCopy, Clapperboard, Megaphone, MessageSquare, RefreshCw, ShieldCheck, Sparkles, Split, Target } from "lucide-react";
-import { Badge, Button } from "./ui";
+import { Badge, Button, Segmented } from "./ui";
 import { cn } from "@/lib/cn";
 import { campaignBrief } from "@/lib/export";
 import { DEMO_ALTERNATIVES } from "@/lib/demo";
@@ -11,9 +11,9 @@ import type { CampaignConcept, Research, Trend } from "@/lib/types";
 
 function Block({ label, children, icon: Icon, className }: { label: string; children: React.ReactNode; icon?: typeof Target; className?: string }) {
   return (
-    <div className={cn("rounded-lg border border-line bg-white p-4", className)}>
-      <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-4">{Icon && <Icon className="h-3.5 w-3.5" />}{label}</div>
-      <div className="text-[13.5px] leading-relaxed text-ink-2">{children}</div>
+    <div className={cn("rounded-lg border border-line bg-surface p-4", className)}>
+      <div className="mb-1.5 flex items-center gap-1.5 eyebrow">{Icon && <Icon className="h-3.5 w-3.5" />}{label}</div>
+      <div className="text-sm leading-relaxed text-ink-2">{children}</div>
     </div>
   );
 }
@@ -22,26 +22,26 @@ export function CampaignView({ research, campaign: c }: { research: Research; ca
   const src = new Map(research.sources.map((s) => [s.id, s]));
   return (
     <div className="space-y-4">
-      <div className="rounded-xl bg-ink p-6 text-white">
+      <div className="relative overflow-hidden rounded-xl bg-ink p-6 text-white sm:p-8">
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/50">Кампания</span>
+          <span className="eyebrow text-white/50">Кампания</span>
           <Badge className="bg-white/10 text-white/80"><Sparkles className="h-3 w-3" />Творческая гипотеза AI</Badge>
         </div>
-        <h3 className="font-serif text-[28px] font-semibold leading-tight">{c.name}</h3>
-        <p className="mt-3 font-serif text-[20px] italic text-[#5fd3c3]">{c.slogan}</p>
-        <p className="mt-4 max-w-3xl text-[14.5px] leading-relaxed text-white/80"><span className="text-white/50">Big Idea. </span>{c.bigIdea}</p>
+        <h3 className="font-serif text-2xl font-semibold leading-tight">{c.name}</h3>
+        <p className="mt-3 font-serif text-xl italic text-[#5fd3c3]">{c.slogan}</p>
+        <p className="mt-4 max-w-3xl text-base leading-relaxed text-white/80"><span className="text-white/50">Big Idea. </span>{c.bigIdea}</p>
       </div>
 
       <div className="rounded-xl border border-accent/25 bg-accent-soft/50 p-4">
-        <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-accent-ink"><ShieldCheck className="h-3.5 w-3.5" />Опора на доказательную базу{research.mode === "demo" ? " (демо-данные)" : ""}</div>
+        <div className="mb-2 flex items-center gap-1.5 eyebrow text-accent-ink"><ShieldCheck className="h-3.5 w-3.5" />Опора на доказательную базу{research.mode === "demo" ? " (демо-данные)" : ""}</div>
         {c.evidenceLinks.length === 0 ? (
-          <p className="text-[13px] text-ink-3">Модель не привязала концепцию к конкретным публикациям — относитесь к ней как к гипотезе.</p>
+          <p className="text-sm text-ink-3">Модель не привязала концепцию к конкретным публикациям — относитесь к ней как к гипотезе.</p>
         ) : (
           <ul className="space-y-1.5">
             {c.evidenceLinks.map((l) => (
-              <li key={l.claim} className="text-[13.5px] text-ink-2">
+              <li key={l.claim} className="text-sm text-ink-2">
                 <span className="mr-1">•</span>{l.claim}
-                <span className="ml-1 text-xs text-ink-4">
+                <span className="ml-1 text-xs text-ink-3">
                   — {l.sourceIds.map((id, i) => {
                     const s = src.get(id);
                     if (!s) return null;
@@ -66,14 +66,14 @@ export function CampaignView({ research, campaign: c }: { research: Research; ca
       </div>
 
       <div>
-        <div className="mb-2 mt-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-4">Примеры креативов</div>
+        <div className="mb-2 mt-2 eyebrow">Примеры креативов</div>
         <div className="grid gap-3 md:grid-cols-3">
           {c.creatives.map((cr, i) => (
-            <div key={i} className="flex flex-col rounded-lg border border-line bg-white p-4">
+            <div key={i} className="flex flex-col rounded-lg border border-line bg-surface p-4">
               <div className="mb-3 grid aspect-[16/9] place-items-center rounded-md border border-dashed border-line-2 bg-paper text-center">
-                <div className="px-3"><div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-4">{cr.format}</div><div className="mt-1 font-serif text-[16px] font-semibold text-ink">{cr.title}</div></div>
+                <div className="px-3"><div className="eyebrow">{cr.format}</div><div className="mt-1 font-serif text-md font-semibold text-ink">{cr.title}</div></div>
               </div>
-              <p className="text-[13px] leading-relaxed text-ink-2">{cr.description}</p>
+              <p className="text-sm leading-relaxed text-ink-2">{cr.description}</p>
             </div>
           ))}
         </div>
@@ -96,6 +96,16 @@ export function CampaignStudio({ research, trend }: { research: Research; trend:
   const [copied, setCopied] = useState(false);
   const campaigns = trend.campaigns;
   const c = campaigns[Math.min(active, campaigns.length - 1)];
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(campaignBrief(research, trend, c));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setErr("Браузер не разрешил доступ к буферу обмена. Используйте экспорт в Markdown на дашборде.");
+    }
+  }
 
   const updateTrend = (patch: Partial<Trend>) => {
     const next = { ...research, trends: research.trends.map((t) => (t.id === trend.id ? { ...t, ...patch } : t)) };
@@ -143,34 +153,47 @@ export function CampaignStudio({ research, trend }: { research: Research; trend:
 
   if (!c)
     return (
-      <div className="rounded-xl border border-dashed border-line-2 bg-white px-6 py-10 text-center">
-        <p className="text-sm text-ink-3">Для этого тренда концепция кампании не была сгенерирована (ошибка модели на этапе генерации).</p>
+      <div className="rounded-xl border border-dashed border-line-2 bg-surface px-6 py-10 text-center">
+        <p className="text-base text-ink-3">Для этого тренда концепция кампании не была сгенерирована (ошибка модели на этапе генерации).</p>
         <Button className="mt-4" variant="primary" loading={busy === "regen"} onClick={() => call("regenerate")}><RefreshCw className="h-4 w-4" /> Сгенерировать гипотезу и кампанию</Button>
-        {err && <p className="mt-3 text-[13px] text-rose">{err}</p>}
+        {err && <p className="mt-3 text-sm text-rose">{err}</p>}
       </div>
     );
 
   return (
     <div>
       <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1 rounded-lg border border-line bg-white p-1">
-          {campaigns.map((x, i) => (
-            <button key={x.id} onClick={() => setActive(i)} className={cn("rounded-md px-3 py-1 text-[13px] transition-colors", i === active ? "bg-ink text-white" : "text-ink-3 hover:text-ink")}>
-              Концепция {i + 1}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          size="sm"
+          label="Концепции кампании"
+          value={Math.min(active, campaigns.length - 1)}
+          onChange={setActive}
+          options={campaigns.map((_, i) => ({ value: i, label: `Концепция ${i + 1}` }))}
+        />
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={async () => { await navigator.clipboard.writeText(campaignBrief(research, trend, c)); setCopied(true); setTimeout(() => setCopied(false), 1800); }}>
-            {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <ClipboardCopy className="h-3.5 w-3.5" />} {copied ? "Бриф скопирован" : "Копировать бриф"}
+          <Button size="sm" onClick={copy} aria-live="polite">
+            <span className="relative grid h-3.5 w-3.5 place-items-center" aria-hidden>
+              <ClipboardCopy className={cn("absolute h-3.5 w-3.5 transition-[opacity,transform,filter] duration-base ease-out", copied ? "scale-50 opacity-0 blur-[2px]" : "opacity-100")} />
+              <Check className={cn("absolute h-3.5 w-3.5 text-accent transition-[opacity,transform,filter] duration-base ease-out", copied ? "opacity-100" : "scale-50 opacity-0 blur-[2px]")} />
+            </span>
+            {copied ? "Бриф скопирован" : "Копировать бриф"}
           </Button>
           <Button size="sm" variant="accent" loading={busy === "alt"} onClick={() => call("alternative")}>
             {busy !== "alt" && <Sparkles className="h-3.5 w-3.5" />} Альтернативная концепция
           </Button>
         </div>
       </div>
-      {err && <div className="mb-4 rounded-lg border border-amber/30 bg-amber-soft px-4 py-2.5 text-[13px] text-amber">{err}</div>}
-      <CampaignView research={research} campaign={c} />
+      {err && <div role="alert" className="mb-4 animate-fade-in rounded-lg border border-amber/30 bg-amber-soft px-4 py-2.5 text-sm text-amber">{err}</div>}
+      {busy === "alt" ? (
+        <div className="space-y-3" aria-busy="true" aria-label="Генерация концепции">
+          <div className="skeleton h-40 rounded-xl" />
+          <div className="grid gap-3 md:grid-cols-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-24 rounded-lg" />)}</div>
+        </div>
+      ) : (
+        <div key={c.id} className="animate-fade-up">
+          <CampaignView research={research} campaign={c} />
+        </div>
+      )}
     </div>
   );
 }

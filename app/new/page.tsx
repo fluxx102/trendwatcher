@@ -3,7 +3,7 @@ import { IS_STATIC, researchHref } from "@/lib/routes";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Check, CircleDashed, FlaskConical, Loader2, Play, Sparkles, X } from "lucide-react";
-import { Button, Card, Field, inputCls } from "@/components/ui";
+import { Button, Card, Field, Segmented, inputCls } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { buildDemoResearch, DEMO_INPUT } from "@/lib/demo";
 import { store } from "@/lib/store";
@@ -124,25 +124,25 @@ export default function ResearchStudio() {
 
   return (
     <div>
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <header className="mb-8 flex animate-fade-up flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">Research Studio</div>
-          <h1 className="font-serif text-[34px] font-semibold leading-tight tracking-tight">Новое исследование рынка</h1>
-          <p className="mt-2 max-w-2xl text-[15px] text-ink-3">Опишите рынок, бренд и вопрос — Trendwatcher соберёт публикации, отделит независимые наблюдения от перепечаток и превратит тренды в продуктовые гипотезы и кампании.</p>
+          <div className="mb-2 eyebrow text-accent">Research Studio</div>
+          <h1 className="font-serif text-3xl font-semibold ">Новое исследование рынка</h1>
+          <p className="mt-2 max-w-2xl text-base text-ink-3 sm:text-md">Опишите рынок, бренд и вопрос — Trendwatcher соберёт публикации, отделит независимые наблюдения от перепечаток и превратит тренды в продуктовые гипотезы и кампании.</p>
         </div>
-        <div className={cn("flex items-center gap-2 rounded-full border px-3 py-1 text-xs", status?.hasApiKey ? "border-accent/30 bg-accent-soft text-accent-ink" : "border-line-2 bg-white text-ink-3")}>
+        <div className={cn("flex items-center gap-2 rounded-full border px-3 py-1 text-xs", status?.hasApiKey ? "border-accent/30 bg-accent-soft text-accent-ink" : "border-line-2 bg-surface text-ink-3")}>
           <span className={cn("h-1.5 w-1.5 rounded-full", status === null ? "bg-ink-4" : status.hasApiKey ? "bg-accent" : "bg-amber")} />
           {status === null ? "Проверка AI-движка…" : status.hasApiKey ? `AI-поиск активен · ${status.model}` : IS_STATIC ? "Статическая демо-версия — реальный поиск только при запуске с сервером" : "API-ключ не настроен — доступен демо-режим"}
         </div>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-        <Card className="p-6">
+      <div className="grid gap-6 lg:grid-cols-[1fr_340px] [&>*]:min-w-0">
+        <Card className="p-5 sm:p-6">
           <div className="mb-6">
-            <div className="mb-2 text-[13px] font-medium text-ink-2">Пресеты категорий</div>
-            <div className="flex flex-wrap gap-2">
+            <div className="mb-2 text-sm font-medium text-ink-2">Пресеты категорий</div>
+            <div className="no-scrollbar -mx-6 flex gap-2 overflow-x-auto px-6 sm:mx-0 sm:flex-wrap sm:px-0">
               {PRESETS.map((p) => (
-                <button key={p.name} type="button" onClick={() => applyPreset(p)} className={cn("rounded-full border px-3 py-1 text-[13px] transition-colors", preset === p.name ? "border-ink bg-ink text-white" : "border-line-2 bg-white text-ink-2 hover:border-ink-4")}>
+                <button key={p.name} type="button" aria-pressed={preset === p.name} onClick={() => applyPreset(p)} className={cn("pressable rounded-full border px-3 py-1 text-sm", preset === p.name ? "border-ink bg-ink text-white" : "border-line-2 bg-surface text-ink-2 hover:border-ink-4")}>
                   {p.name}
                 </button>
               ))}
@@ -165,13 +165,12 @@ export default function ResearchStudio() {
               <input className={inputCls} value={form.geography} onChange={(e) => set("geography", e.target.value)} placeholder="США, Россия, Европа…" />
             </Field>
             <Field label="Период" group>
-              <div className="grid grid-cols-4 gap-1 rounded-lg border border-line-2 bg-paper p-1">
-                {PERIODS.map((p) => (
-                  <button key={p} type="button" onClick={() => set("periodDays", p)} className={cn("rounded-md py-1.5 text-[13px] transition-colors", form.periodDays === p ? "bg-white font-medium text-ink shadow-card ring-1 ring-line" : "text-ink-3 hover:text-ink")}>
-                    {p} дн.
-                  </button>
-                ))}
-              </div>
+              <Segmented
+                label="Период исследования"
+                value={form.periodDays}
+                onChange={(v) => set("periodDays", v)}
+                options={PERIODS.map((p) => ({ value: p, label: `${p} дн.` }))}
+              />
             </Field>
             <div className="sm:col-span-2">
               <Field label="Исследовательский вопрос">
@@ -179,7 +178,7 @@ export default function ResearchStudio() {
               </Field>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {questions.map((q) => (
-                  <button key={q} type="button" onClick={() => set("question", q)} className="rounded-md border border-dashed border-line-2 px-2 py-1 text-left text-xs text-ink-3 transition-colors hover:border-accent hover:text-accent-ink">
+                  <button key={q} type="button" onClick={() => set("question", q)} className="pressable rounded-md border border-dashed border-line-2 px-2 py-1 text-left text-xs text-ink-3 hover:border-accent hover:bg-accent-soft/40 hover:text-accent-ink">
                     {q}
                   </button>
                 ))}
@@ -193,12 +192,12 @@ export default function ResearchStudio() {
           </div>
 
           {errors.length > 0 && (
-            <div className="mt-5 rounded-lg border border-rose/30 bg-rose-soft px-4 py-3 text-[13px] text-rose">
+            <div role="alert" className="mt-5 animate-fade-in rounded-lg border border-rose/30 bg-rose-soft px-4 py-3 text-sm text-rose">
               {errors.map((e) => <div key={e}>• {e}</div>)}
             </div>
           )}
 
-          <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-line pt-5">
+          <div className="mt-6 grid gap-2 border-t border-line pt-5 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
             <Button variant="primary" size="lg" onClick={run} loading={running}>
               {!running && <Play className="h-4 w-4" />} Запустить исследование
             </Button>
@@ -216,12 +215,12 @@ export default function ResearchStudio() {
 
         <div className="space-y-4">
           {failure && (
-            <Card className="border-rose/30 p-5">
+            <Card role="alert" className="animate-scale-in border-rose/30 p-5">
               <div className="flex items-start gap-3">
                 <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose" />
                 <div>
                   <div className="font-medium text-ink">{failure.code === "NO_API_KEY" ? "Реальный поиск недоступен" : failure.code === "NO_RESULTS" ? "Ничего не найдено" : "Исследование не завершено"}</div>
-                  <p className="mt-1 text-[13px] text-ink-3">{failure.message}</p>
+                  <p className="mt-1 text-sm text-ink-3">{failure.message}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button size="sm" variant="accent" onClick={runDemo}><FlaskConical className="h-3.5 w-3.5" /> Открыть демо</Button>
                     {failure.code !== "NO_API_KEY" && <Button size="sm" onClick={run}>Повторить</Button>}
@@ -232,17 +231,17 @@ export default function ResearchStudio() {
           )}
           {showProgress ? (
             <Card className="p-5">
-              <div className="mb-4 flex items-center gap-2 text-sm font-medium"><Sparkles className="h-4 w-4 text-accent" /> Ход исследования</div>
-              <ol className="space-y-4">
+              <div className="mb-4 flex items-center gap-2 text-base font-medium"><Sparkles className="h-4 w-4 text-accent" /> Ход исследования</div>
+              <ol className="space-y-4" aria-live="polite">
                 {STAGES.map((s) => {
                   const st = stages[s.id];
                   return (
                     <li key={s.id} className="flex gap-3">
-                      <span className="mt-0.5">
+                      <span key={st.status} className="mt-0.5 animate-scale-in">
                         {st.status === "done" ? <Check className="h-4 w-4 text-accent" /> : st.status === "running" ? <Loader2 className="h-4 w-4 animate-spin text-cobalt" /> : st.status === "error" ? <X className="h-4 w-4 text-rose" /> : <CircleDashed className="h-4 w-4 text-ink-4" />}
                       </span>
                       <div>
-                        <div className={cn("text-[13.5px]", st.status === "idle" ? "text-ink-4" : "text-ink")}>{s.label}</div>
+                        <div className={cn("text-sm", st.status === "idle" ? "text-ink-4" : "text-ink")}>{s.label}</div>
                         <div className="text-xs text-ink-4">{st.detail ?? s.hint}</div>
                       </div>
                     </li>
@@ -253,11 +252,11 @@ export default function ResearchStudio() {
             </Card>
           ) : (
             <Card className="p-5">
-              <div className="mb-3 text-sm font-medium">Как работает исследование</div>
+              <div className="mb-3 text-base font-medium">Как работает исследование</div>
               <ol className="space-y-3">
                 {STAGES.map((s, i) => (
-                  <li key={s.id} className="flex gap-3 text-[13px]">
-                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-paper-2 text-[11px] font-semibold text-ink-3">{i + 1}</span>
+                  <li key={s.id} className="flex gap-3 text-sm">
+                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-paper-2 text-micro font-semibold text-ink-3">{i + 1}</span>
                     <div><div className="text-ink-2">{s.label}</div><div className="text-xs text-ink-4">{s.hint}</div></div>
                   </li>
                 ))}
